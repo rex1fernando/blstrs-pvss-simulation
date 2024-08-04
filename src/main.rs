@@ -1,9 +1,14 @@
 
+mod group_ops_simulation;
+
+use group_ops_simulation::*;
+
 use blstrs::{pairing, Bls12, G1Affine, G1Projective, G2Affine, G2Prepared, G2Projective, Gt, Scalar};
 use group::{ff::Field as _, Group as _, Curve as _};
 use pairing::{MultiMillerLoop, MillerLoopResult};
 use rand::thread_rng;
 use std::time::{Instant, Duration};
+
 
 fn multi_pairing<'a>(lhs: impl Iterator<Item = &'a G1Projective>, rhs: impl Iterator<Item = &'a G2Projective>) -> Gt {
     <Bls12 as MultiMillerLoop>::multi_miller_loop(
@@ -105,8 +110,43 @@ fn simulate_groth(n: usize, k: usize, t: usize, l: usize) {
         );
     // we need to do one inversion to convert the three pairings into multi-pairings, which I'm not
     // simulating.
+    //
+    let mut rng = thread_rng();
+    let mut sim = GroupOpsSimulation::new(&mut rng);
+    sim
+        .g1_exps(n + 2*k + l + 2)
+        .g1_multi_exps(2, n)
+        .g1_multi_exps(n*k + n + k + l + 1, 2)
+        .g2_exps(t+1);
+
+    let start_time = Instant::now();
+    sim.simulate();
+    let duration = start_time.elapsed();
+    println!("{:?}", duration);
+
+    let mut rng = thread_rng();
+    let mut sim = GroupOpsSimulation::new(&mut rng);
+    sim
+        .g1_exps(n + 2)
+        .g1_multi_exps(1,2)
+        .g1_multi_exps(2,n+1)
+        .g1_multi_exps(n,k+1)
+        .g1_multi_exps(1,l+1)
+        .g1_multi_exps(1,k*n*l+l+1)
+        .g1_multi_exps(1,n+2)
+        .g1_multi_exps(2,k)
+        .g2_exps(1)
+        .g2_multi_exps(1,t+1)
+        .g2_multi_exps(1,k)
+        .multi_pairings(1, 3);
+
+    let start_time = Instant::now();
+    sim.simulate();
+    let duration = start_time.elapsed();
+    println!("{:?}", duration);
+
 }
 
 fn main() {
-    simulate_groth(1000, 16, 666, 50);
+    simulate_groth(1024, 16, 660, 16);
 }
